@@ -1,0 +1,307 @@
+openapi: 3.0.3
+info:
+  title: Brazil Data API
+  description: >
+    Unified REST API that aggregates Brazilian public/free data sources
+    (postal codes, IBGE geographic data, national holidays and CNPJ company
+    lookups) behind a single, consistent JSON interface.
+  version: 0.1.0
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+  - name: CEP
+  - name: Locations
+  - name: Holidays
+  - name: CNPJ
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/cep/{cep}:
+    get:
+      tags: [CEP]
+      summary: Look up an address by Brazilian postal code (CEP)
+      parameters:
+        - name: cep
+          in: path
+          required: true
+          description: 8-digit CEP, with or without a hyphen (e.g. "69000000" or "69000-000")
+          schema:
+            type: string
+            example: '69000000'
+      responses:
+        '200':
+          description: Address found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CepResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
+  /api/v1/states:
+    get:
+      tags: [Locations]
+      summary: List all Brazilian states
+      responses:
+        '200':
+          description: List of states
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StateResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
+  /api/v1/states/{uf}/cities:
+    get:
+      tags: [Locations]
+      summary: List cities (municipalities) for a given state
+      parameters:
+        - name: uf
+          in: path
+          required: true
+          description: 2-letter state code (e.g. "AM")
+          schema:
+            type: string
+            example: AM
+      responses:
+        '200':
+          description: List of cities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CityResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
+  /api/v1/holidays/{year}:
+    get:
+      tags: [Holidays]
+      summary: List Brazilian national holidays for a given year
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 2026
+      responses:
+        '200':
+          description: List of holidays
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HolidayResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
+  /api/v1/cnpj/{cnpj}:
+    get:
+      tags: [CNPJ]
+      summary: Look up a company by CNPJ
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          description: 14-digit CNPJ, with or without formatting punctuation
+          schema:
+            type: string
+            example: '19131243000197'
+      responses:
+        '200':
+          description: Company found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CnpjResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        uptimeSeconds:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    CepResponse:
+      type: object
+      properties:
+        cep:
+          type: string
+          example: '69000000'
+        street:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+          example: Manaus
+        state:
+          type: string
+          example: Amazonas
+        stateCode:
+          type: string
+          example: AM
+
+    StateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Amazonas
+        stateCode:
+          type: string
+          example: AM
+        region:
+          type: string
+          example: Norte
+
+    CityResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: Manaus
+        stateCode:
+          type: string
+          example: AM
+
+    HolidayResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          example: '2026-01-01'
+        name:
+          type: string
+          example: Confraternização mundial
+        type:
+          type: string
+          example: national
+
+    CnpjResponse:
+      type: object
+      properties:
+        cnpj:
+          type: string
+        legalName:
+          type: string
+        tradeName:
+          type: string
+          nullable: true
+        status:
+          type: string
+        openedAt:
+          type: string
+          nullable: true
+        mainActivity:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: INVALID_CEP
+            message:
+              type: string
+              example: CEP must contain 8 digits.
+            details:
+              type: object
+              nullable: true
+
+  responses:
+    ValidationError:
+      description: Request failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UpstreamError:
+      description: An external provider failed or returned an unexpected response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UpstreamTimeout:
+      description: An external provider did not respond in time
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
