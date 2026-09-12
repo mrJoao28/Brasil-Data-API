@@ -1,27 +1,20 @@
 import pino, { type LoggerOptions } from 'pino';
-import { env } from './env';
 
 const baseOptions: LoggerOptions = {
-  level: env.LOG_LEVEL,
-  base: {
-    service: 'brazil-data-api',
-  },
-  redact: ['req.headers.authorization'],
+  level: process.env.LOG_LEVEL || 'info',
 };
 
 const options: LoggerOptions =
-  env.NODE_ENV === 'development'
+  process.env.NODE_ENV !== 'production'
     ? {
         ...baseOptions,
         transport: {
           target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'HH:MM:ss',
-            ignore: 'pid,hostname',
-          },
+          options: { colorize: true },
         },
       }
     : baseOptions;
 
-export const logger = pino(options);
+const logger = pino(options);
+
+export default logger;
