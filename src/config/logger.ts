@@ -17,4 +17,6 @@ const options: LoggerOptions =
 
 const logger = pino(options);
 
+export {logger}
+
 export default logger;
