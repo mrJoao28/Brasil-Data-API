@@ -14,24 +14,30 @@ function sendRateLimited(_req: Request, res: Response): void {
   });
 }
 
-const globalStore = redisEnabled ? new RedisRateLimitStore('ratelimit:global') : undefined;
-const tierStore = redisEnabled ? new RedisRateLimitStore('ratelimit:tier') : undefined;
+const globalStore = redisEnabled ? new RedisRateLimitStore('ratelimit:global') : null;
+const tierStore = redisEnabled ? new RedisRateLimitStore('ratelimit:tier') : null;
 
-export const rateLimiter = rateLimit({
+const globalLimiterOptions = {
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
-  store: globalStore,
   handler: sendRateLimited,
-});
+};
 
-export const apiTierRateLimiter = rateLimit({
+export const rateLimiter = globalStore
+  ? rateLimit({ ...globalLimiterOptions, store: globalStore })
+  : rateLimit(globalLimiterOptions);
+
+const tierLimiterOptions = {
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   standardHeaders: true,
   legacyHeaders: false,
-  store: tierStore,
   keyGenerator: (req: Request): string => req.apiKey ?? req.ip ?? 'unknown',
   max: (req: Request): number => getTierConfig(req.apiKeyTier ?? 'free').maxRequests,
   handler: sendRateLimited,
-});
+};
+
+export const apiTierRateLimiter = tierStore
+  ? rateLimit({ ...tierLimiterOptions, store: tierStore })
+  : rateLimit(tierLimiterOptions);
