@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Unified REST API that aggregates Brazilian public/free data sources (CEP, IBGE locations, national holidays, CNPJ) behind a single consistent interface.",
   "license": "MIT",
-  "private": true,
   "type": "commonjs",
   "engines": {
     "node": ">=20.0.0"
