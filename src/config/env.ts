@@ -17,7 +17,7 @@ const envSchema = z.object({
   BRASILAPI_BASE_URL: z.string().url().default('https://brasilapi.com.br/api'),
   OPENCNPJ_BASE_URL: z.string().url().default('https://api.opencnpj.org'),
   CEP_PROVIDER: z.enum(['viacep', 'correios']).default('viacep'),
-  CNPJ_PROVIDER: z.enum(['brasilapi', 'opencnpj', 'receita-federal']).default('brasilapi'),
+  CNPJ_PROVIDER: z.enum(['brasilapi', 'opencnpj', 'failover', 'receita-federal']).default('failover'),
 });
 
 export type Env = z.infer<typeof envSchema>;
