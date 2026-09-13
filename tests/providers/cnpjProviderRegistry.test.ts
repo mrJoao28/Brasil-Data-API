@@ -7,6 +7,6 @@ describe('cnpjProviderRegistry', () => {
     const provider = getCnpjProvider();
 
     expect(provider).not.toBe(brasilApiCnpjProvider);
-    expect(provider.name).toBe('BrasilAPI -> OpenCNPJ');
+    expect(provider.name).toBe('ProviderManager(BrasilAPI -> OpenCNPJ)');
   });
 });
