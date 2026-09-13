@@ -13,14 +13,10 @@ export async function getHealth(_req: Request, res: Response): Promise<void> {
   }
 
   const healthy = redis !== 'degraded';
-  if (!healthy) {
-    res.status(503);
-  }
-
   sendSuccess(res, {
     status: healthy ? 'ok' : 'degraded',
     uptimeSeconds: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
     dependencies: { redis },
-  });
+  }, healthy ? 200 : 503);
 }
