@@ -1,4 +1,5 @@
 import type { ApiKeyTier } from './apiKeys';
+import { env } from './env';
 
 export interface PlanConfig {
   name: string;
@@ -8,8 +9,8 @@ export interface PlanConfig {
 }
 
 export const plans: Record<ApiKeyTier, PlanConfig> = {
-  free: { name: 'Free', monthlyQuota: 3_000, rateLimitPerMinute: 5, maxApiKeys: 1 },
-  paid: { name: 'Pro', monthlyQuota: 100_000, rateLimitPerMinute: 120, maxApiKeys: 10 },
+  free: { name: 'Free', monthlyQuota: env.PLAN_FREE_MONTHLY_QUOTA, rateLimitPerMinute: env.RATE_LIMIT_FREE_MAX, maxApiKeys: 1 },
+  paid: { name: 'Pro', monthlyQuota: env.PLAN_PAID_MONTHLY_QUOTA, rateLimitPerMinute: env.RATE_LIMIT_PAID_MAX, maxApiKeys: 10 },
 };
 
 export function getPlanConfig(tier: ApiKeyTier): PlanConfig {
