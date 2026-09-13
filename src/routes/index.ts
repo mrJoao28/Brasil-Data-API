@@ -5,6 +5,7 @@ import { empresaCompletaRouter } from './empresaCompleta.routes';
 import { healthRouter } from './health.routes';
 import { holidaysRouter } from './holidays.routes';
 import { locationRouter } from './location.routes';
+import { metricsRouter } from './metrics.routes';
 
 export const healthRoutes = healthRouter;
 
@@ -15,3 +16,4 @@ apiV1Router.use(locationRouter);
 apiV1Router.use(holidaysRouter);
 apiV1Router.use(cnpjRouter);
 apiV1Router.use(empresaCompletaRouter);
+apiV1Router.use(metricsRouter);
