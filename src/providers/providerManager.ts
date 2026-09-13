@@ -1,9 +1,9 @@
 import { env } from '../config/env';
 import { UpstreamError, UpstreamTimeoutError } from '../utils/errors';
 
-export interface ManagedProvider<T> {
+export interface ManagedProvider<T, TInput> {
   readonly name: string;
-  execute(): Promise<T | null>;
+  execute(input: TInput): Promise<T | null>;
 }
 
 interface ProviderState {
@@ -23,24 +23,24 @@ export interface ProviderStats {
   circuitOpen: boolean;
 }
 
-export class ProviderManager<T> {
+export class ProviderManager<T, TInput> {
   private readonly states = new Map<string, ProviderState>();
 
-  constructor(private readonly providers: ManagedProvider<T>[]) {
+  constructor(private readonly providers: ManagedProvider<T, TInput>[]) {
     if (providers.length === 0) throw new Error('At least one provider is required.');
     for (const provider of providers) {
       this.states.set(provider.name, { failures: 0, openedAt: null, successes: 0, errors: 0, totalLatencyMs: 0 });
     }
   }
 
-  async execute(): Promise<{ value: T | null; provider: string }> {
+  async execute(input: TInput): Promise<{ value: T | null; provider: string }> {
     let lastError: unknown;
     for (const provider of this.providers) {
       const state = this.states.get(provider.name)!;
       if (this.isCircuitOpen(state)) continue;
       const started = Date.now();
       try {
-        const value = await provider.execute();
+        const value = await provider.execute(input);
         state.totalLatencyMs += Date.now() - started;
         state.successes += 1;
         state.failures = 0;
@@ -61,12 +61,13 @@ export class ProviderManager<T> {
   getStats(): ProviderStats[] {
     return this.providers.map(({ name }) => {
       const state = this.states.get(name)!;
+      const attempts = state.successes + state.errors;
       return {
         name,
         failures: state.failures,
         successes: state.successes,
         errors: state.errors,
-        averageLatencyMs: state.successes + state.errors === 0 ? 0 : Number((state.totalLatencyMs / (state.successes + state.errors)).toFixed(2)),
+        averageLatencyMs: attempts === 0 ? 0 : Number((state.totalLatencyMs / attempts).toFixed(2)),
         circuitOpen: this.isCircuitOpen(state),
       };
     });
