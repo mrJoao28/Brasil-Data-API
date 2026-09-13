@@ -162,12 +162,22 @@ https://brasil-data-api.onrender.com/api-docs
 
 The API currently aggregates:
 
-- **CEP:** ViaCEP
+- **CEP:** ViaCEP (default; configurable via `CEP_PROVIDER`)
 - **States/cities:** IBGE Localidades
 - **National holidays:** BrasilAPI
-- **CNPJ:** BrasilAPI / Minha Receita data source
+- **CNPJ:** BrasilAPI (default; configurable via `CNPJ_PROVIDER`)
 
-Provider terms, rate limits, availability and licensing can change. Re-check current provider terms before high-volume or commercial redistribution.
+CEP and CNPJ lookups go through a small provider interface
+(`src/providers/`) rather than calling a vendor API directly from the
+service layer, so a data source can be swapped by adding a new provider
+implementation instead of touching controllers, routes, or schemas.
+
+Provider terms, rate limits, availability and licensing can change.
+**Before any commercial or high-volume redistribution (e.g. a paid
+RapidAPI tier), read [`docs/PROVIDERS.md`](docs/PROVIDERS.md)** — it
+documents what each current provider's own terms actually say (and
+don't say) about commercial use, and what would need to change before
+relying on them for a paid product.
 
 ## AI and agent integrations
 
@@ -198,15 +208,16 @@ Architecture:
 routes -> controllers -> services -> external providers
 ```
 
-Controllers do not call external APIs directly. Provider communication is handled by the service layer through a shared timeout-aware HTTP client.
+Controllers do not call external APIs directly. For CEP and CNPJ, services depend on a provider interface (`src/providers/`); for the other integrations, services call a shared timeout-aware HTTP client directly.
 
 ## Project structure
 
 ```text
 src/
-  config/       environment, provider URLs, API keys, logger
+  config/       environment, provider URLs/selection, API keys, logger
   controllers/  HTTP/controller layer
-  services/     business logic and provider integrations
+  services/     business logic; depends on providers, not vendor APIs directly
+  providers/    CEP/CNPJ provider interfaces + implementations (ViaCEP, BrasilAPI)
   routes/       Express routes and validation wiring
   schemas/      Zod schemas
   middlewares/  authentication, validation, rate limiting, logging, errors
@@ -217,9 +228,12 @@ src/
 tests/
   schemas/
   services/
+  providers/
+  utils/
 
 docs/
   openapi.yaml
+  PROVIDERS.md  what each provider's terms say about commercial use
 
 examples/
   javascript/

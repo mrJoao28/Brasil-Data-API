@@ -27,4 +27,25 @@ describe('cnpjParamSchema', () => {
     const result = cnpjParamSchema.safeParse({ cnpj: '191312430001975' });
     expect(result.success).toBe(false);
   });
+
+  it('accepts a well-known valid CNPJ (Banco do Brasil)', () => {
+    const result = cnpjParamSchema.safeParse({ cnpj: '00.000.000/0001-91' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cnpj).toBe('00000000000191');
+    }
+  });
+
+  it('rejects a 14-digit CNPJ with invalid check digits', () => {
+    const result = cnpjParamSchema.safeParse({ cnpj: '19131243000199' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('CNPJ check digits are invalid.');
+    }
+  });
+
+  it('rejects 14 repeated digits even though the checksum arithmetic would pass', () => {
+    const result = cnpjParamSchema.safeParse({ cnpj: '11111111111111' });
+    expect(result.success).toBe(false);
+  });
 });
