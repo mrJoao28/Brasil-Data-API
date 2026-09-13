@@ -5,7 +5,7 @@ import { redisDecr, redisDelete, redisEnabled, redisExpire, redisIncr, redisTtl 
 export class RedisRateLimitStore implements Store {
   windowMs = env.RATE_LIMIT_WINDOW_MS;
 
-  constructor(private readonly prefix: string) {}
+  constructor(readonly prefix: string) {}
 
   async increment(key: string): Promise<IncrementResponse> {
     if (!redisEnabled) throw new Error('Redis rate-limit store is not configured.');
