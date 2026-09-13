@@ -52,13 +52,10 @@ export class ProviderManager<T, TInput> {
       } catch (error) {
         state.totalLatencyMs += Date.now() - started;
         state.errors += 1;
-        if (!(error instanceof UpstreamError) && !(error instanceof UpstreamTimeoutError)) {
-          state.halfOpenProbe = false;
-          throw error;
-        }
-        state.failures += 1;
-        state.openedAt = Date.now();
         state.halfOpenProbe = false;
+        if (!(error instanceof UpstreamError) && !(error instanceof UpstreamTimeoutError)) throw error;
+        state.failures += 1;
+        if (state.failures >= env.PROVIDER_FAILURE_THRESHOLD) state.openedAt = Date.now();
         lastError = error;
       }
     }
