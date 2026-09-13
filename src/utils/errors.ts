@@ -32,6 +32,17 @@ export class NotFoundError extends ApiError {
 }
 
 /**
+ * Raised when a request to an authenticated route is missing a valid API
+ * key. Maps to HTTP 401.
+ */
+export class UnauthorizedError extends ApiError {
+  constructor(message: string, details?: unknown) {
+    super(401, 'UNAUTHORIZED', message, details);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+/**
  * Raised when a call to an upstream/external provider fails, times out,
  * or returns an unexpected payload. Maps to HTTP 502 by default since the
  * failure originates from a dependency, not from the client's request.

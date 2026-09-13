@@ -17,21 +17,45 @@ enforces timeouts and consistent error handling.
 
 Node.js, TypeScript (strict mode), Express, Zod, native `fetch`, Vitest,
 ESLint, Prettier, OpenAPI/Swagger, Docker & Docker Compose. No database,
-no Redis, no authentication — intentionally, for this MVP stage.
+no Redis — intentionally, for this MVP stage. `/api/v1/*` requires an API
+key (see [Authentication & tiers](#authentication--tiers) below).
 
 ## Endpoints
 
-| Method | Path                         | Description                              |
-| ------ | ---------------------------- | ----------------------------------------- |
-| GET    | `/health`                    | Liveness/health check                     |
-| GET    | `/api/v1/cep/:cep`           | Address lookup by postal code (CEP)       |
-| GET    | `/api/v1/states`             | List all Brazilian states                 |
-| GET    | `/api/v1/states/:uf/cities`  | List cities (municipalities) for a state  |
-| GET    | `/api/v1/holidays/:year`     | National holidays for a given year        |
-| GET    | `/api/v1/cnpj/:cnpj`         | Company lookup by CNPJ                    |
+| Method | Path                         | Description                              | Auth required |
+| ------ | ---------------------------- | ----------------------------------------- | -------------- |
+| GET    | `/health`                    | Liveness/health check                     | No             |
+| GET    | `/api/v1/cep/:cep`           | Address lookup by postal code (CEP)       | Yes            |
+| GET    | `/api/v1/states`             | List all Brazilian states                 | Yes            |
+| GET    | `/api/v1/states/:uf/cities`  | List cities (municipalities) for a state  | Yes            |
+| GET    | `/api/v1/holidays/:year`     | National holidays for a given year        | Yes            |
+| GET    | `/api/v1/cnpj/:cnpj`         | Company lookup by CNPJ                    | Yes            |
 
 Interactive API documentation (Swagger UI) is served at `/api-docs` once
 the server is running, generated from [`docs/openapi.yaml`](docs/openapi.yaml).
+
+## Authentication & tiers
+
+Every `/api/v1/*` request must include an API key in the `x-api-key`
+header:
+
+```bash
+curl -H "x-api-key: YOUR_KEY" http://localhost:3000/api/v1/states
+```
+
+- Missing or unknown key → `401 UNAUTHORIZED`.
+- Each key belongs to a tier — `free` or `paid` — which sets its own
+  request ceiling per `RATE_LIMIT_WINDOW_MS` window (`RATE_LIMIT_FREE_MAX` /
+  `RATE_LIMIT_PAID_MAX` in `.env`). Exceeding it returns
+  `429 RATE_LIMITED`. The limit is tracked per API key, not per IP, so
+  different keys never share a bucket.
+- Keys are configured via the `API_KEYS_FREE` / `API_KEYS_PAID`
+  comma-separated environment variables (see `.env.example`) — there is no
+  database yet in this MVP. `src/config/apiKeys.ts` is the single place
+  that resolves a key to a tier, so swapping this for a real key-management
+  database later doesn't require touching the auth middleware or routes.
+- `/health` and `/api-docs` do not require a key; they still count against
+  the baseline `RATE_LIMIT_MAX_REQUESTS` limiter applied to all traffic.
 
 ### Response format
 
@@ -60,9 +84,9 @@ code:
 }
 ```
 
-Common error codes: `VALIDATION_ERROR` (400), `NOT_FOUND` (404),
-`RATE_LIMITED` (429), `UPSTREAM_ERROR` (502), `UPSTREAM_TIMEOUT` (504),
-`INTERNAL_ERROR` (500), `ROUTE_NOT_FOUND` (404).
+Common error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401),
+`NOT_FOUND` (404), `RATE_LIMITED` (429), `UPSTREAM_ERROR` (502),
+`UPSTREAM_TIMEOUT` (504), `INTERNAL_ERROR` (500), `ROUTE_NOT_FOUND` (404).
 
 ## External providers
 
@@ -101,12 +125,12 @@ README reflects research done at the time this MVP was built.
 
 ```
 src/
-  config/       env parsing (Zod), provider base URLs, logger
+  config/       env parsing (Zod), provider base URLs, API keys/tiers, logger
   controllers/  thin HTTP layer — parse request, call service, send response
   services/     business logic + calls to external providers
   routes/       Express route definitions + validation wiring
   schemas/      Zod schemas for request validation and provider payloads
-  middlewares/  error handler, request validation, rate limiting, logging
+  middlewares/  error handler, request validation, API key auth, rate limiting, logging
   utils/        HTTP client (timeout-aware fetch), typed errors, helpers
   app.ts        Express app assembly
   server.ts     process entrypoint (listen, graceful shutdown)
@@ -207,8 +231,12 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 | `NODE_ENV`                  | `development`                                         | `development` \| `production` \| `test`         |
 | `LOG_LEVEL`                 | `info`                                                | Pino log level                                  |
 | `CORS_ORIGIN`               | `*`                                                    | `*` or comma-separated list of allowed origins  |
-| `RATE_LIMIT_WINDOW_MS`      | `60000`                                               | Rate limit window                               |
-| `RATE_LIMIT_MAX_REQUESTS`   | `60`                                                   | Max requests per window per client              |
+| `RATE_LIMIT_WINDOW_MS`      | `60000`                                               | Rate limit window (baseline and per-tier)       |
+| `RATE_LIMIT_MAX_REQUESTS`   | `60`                                                   | Baseline max requests per window (all routes)   |
+| `RATE_LIMIT_FREE_MAX`       | `60`                                                   | Max `/api/v1` requests per window, `free` tier  |
+| `RATE_LIMIT_PAID_MAX`       | `1000`                                                 | Max `/api/v1` requests per window, `paid` tier  |
+| `API_KEYS_FREE`             | *(empty)*                                              | Comma-separated `free`-tier API keys            |
+| `API_KEYS_PAID`             | *(empty)*                                              | Comma-separated `paid`-tier API keys            |
 | `HTTP_TIMEOUT_MS`           | `8000`                                                | Timeout for calls to external providers         |
 | `VIACEP_BASE_URL`           | `https://viacep.com.br/ws`                            | ViaCEP base URL                                 |
 | `IBGE_LOCALIDADES_BASE_URL` | `https://servicodados.ibge.gov.br/api/v1/localidades` | IBGE Localidades base URL                       |
@@ -216,10 +244,15 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 
 ## Design notes / what was intentionally left out of this MVP
 
-- **No database, no Redis** — the API is a stateless proxy/aggregator;
-  nothing needs to be persisted yet.
-- **No authentication** — this MVP is meant to run behind RapidAPI's own
-  key management later; adding auth here now would be premature.
+- **No database, no Redis** — API keys/tiers are an in-memory lookup
+  sourced from environment variables (`src/config/apiKeys.ts`); nothing
+  else needs to be persisted yet.
+- **API key auth is a thin MVP layer** — a request either matches a
+  configured key (and gets that key's tier) or it doesn't; there's no
+  key issuance, rotation, or revocation flow yet. This is meant to run
+  behind (or alongside) RapidAPI's own key management, and to be swapped
+  for a database-backed store later without touching the middleware or
+  routes.
 - **Rate limiting is in-memory** (via `express-rate-limit`), which is
   fine for a single instance but resets per-process and isn't shared
   across horizontally scaled replicas. Revisit with a shared store
@@ -230,7 +263,7 @@ See [`.env.example`](.env.example) for the full list. Key variables:
 
 ## Roadmap ideas (not implemented)
 
-- API key auth / usage tiers for RapidAPI publication.
 - Response caching for slow-changing data (states, holidays).
 - Additional providers (e.g. bank/DDD lookup, exchange rates) following
   the same `routes -> controllers -> services` pattern.
+- Database-backed API key management (issuance, rotation, revocation).

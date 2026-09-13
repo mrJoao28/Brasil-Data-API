@@ -12,6 +12,9 @@ servers:
   - url: http://localhost:3000
     description: Local development
 
+security:
+  - ApiKeyAuth: []
+
 tags:
   - name: Health
   - name: CEP
@@ -24,6 +27,7 @@ paths:
     get:
       tags: [Health]
       summary: Health check
+      security: []
       responses:
         '200':
           description: Service is healthy
@@ -53,6 +57,8 @@ paths:
                 $ref: '#/components/schemas/CepResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
@@ -73,6 +79,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '502':
           $ref: '#/components/responses/UpstreamError'
         '504':
@@ -101,6 +109,8 @@ paths:
                   $ref: '#/components/schemas/CityResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
@@ -130,6 +140,8 @@ paths:
                   $ref: '#/components/schemas/HolidayResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
@@ -158,6 +170,8 @@ paths:
                 $ref: '#/components/schemas/CnpjResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
@@ -287,6 +301,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     NotFound:
       description: Resource not found
       content:
@@ -305,3 +325,13 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: >
+        API key required for every /api/v1/* request. Each key is assigned a
+        tier (free or paid) with its own rate limit; see README.md for
+        configuration via API_KEYS_FREE / API_KEYS_PAID.

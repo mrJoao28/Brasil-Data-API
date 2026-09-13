@@ -10,6 +10,16 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(60),
 
+  // Per-tier limits for authenticated /api/v1 traffic. Window reuses
+  // RATE_LIMIT_WINDOW_MS above so there is a single knob for the window size.
+  RATE_LIMIT_FREE_MAX: z.coerce.number().int().positive().default(60),
+  RATE_LIMIT_PAID_MAX: z.coerce.number().int().positive().default(1000),
+
+  // Comma-separated lists of API keys per tier. Empty by default (no key
+  // will authenticate) until the operator configures at least one key.
+  API_KEYS_FREE: z.string().default(''),
+  API_KEYS_PAID: z.string().default(''),
+
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(8_000),
 
   VIACEP_BASE_URL: z.string().url().default('https://viacep.com.br/ws'),
