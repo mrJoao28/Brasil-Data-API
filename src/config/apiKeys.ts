@@ -7,13 +7,6 @@ export interface ApiKeyRecord {
   tier: ApiKeyTier;
 }
 
-/**
- * API keys are sourced from comma-separated environment variables in this
- * MVP stage (no database yet). Everything outside this module only depends
- * on `resolveApiKeyTier`, so swapping this for a database-backed lookup
- * later (e.g. `SELECT tier FROM api_keys WHERE key = ?`) only requires
- * rewriting this one file — callers don't need to change.
- */
 function parseKeyList(value: string): string[] {
   return value
     .split(',')
@@ -22,26 +15,15 @@ function parseKeyList(value: string): string[] {
 }
 
 function loadApiKeyRecords(): ApiKeyRecord[] {
-  const freeKeys = parseKeyList(env.API_KEYS_FREE).map((key) => ({
-    key,
-    tier: 'free' as const,
-  }));
-  const paidKeys = parseKeyList(env.API_KEYS_PAID).map((key) => ({
-    key,
-    tier: 'paid' as const,
-  }));
-
+  const freeKeys = parseKeyList(env.API_KEYS_FREE).map((key) => ({ key, tier: 'free' as const }));
+  const paidKeys = parseKeyList(env.API_KEYS_PAID).map((key) => ({ key, tier: 'paid' as const }));
   return [...freeKeys, ...paidKeys];
 }
 
-const apiKeyIndex = new Map<string, ApiKeyTier>(
-  loadApiKeyRecords().map((record) => [record.key, record.tier]),
-);
+const revokedKeys = new Set(parseKeyList(env.API_KEYS_REVOKED));
+const apiKeyIndex = new Map<string, ApiKeyTier>(loadApiKeyRecords().map((record) => [record.key, record.tier]));
 
-/**
- * Returns the tier associated with an API key, or `null` if the key is
- * unknown/invalid.
- */
 export function resolveApiKeyTier(key: string): ApiKeyTier | null {
+  if (revokedKeys.has(key)) return null;
   return apiKeyIndex.get(key) ?? null;
 }
