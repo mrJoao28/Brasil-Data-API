@@ -10,6 +10,7 @@ import { apiKeyAuth } from './middlewares/apiKeyAuth';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { metricsMiddleware } from './middlewares/metrics';
 import { apiTierRateLimiter, rateLimiter } from './middlewares/rateLimiter';
+import { requestId } from './middlewares/requestId';
 import { requestLogger } from './middlewares/requestLogger';
 import { usageMetering } from './middlewares/usageMetering';
 import { apiV1Router, healthRoutes } from './routes';
@@ -25,7 +26,8 @@ export function createApp(): Application {
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors({ origin: getCorsOrigins() }));
-  app.use(express.json());
+  app.use(express.json({ limit: '100kb' }));
+  app.use(requestId);
   app.use(requestLogger);
   app.use(metricsMiddleware);
   app.use(rateLimiter);
