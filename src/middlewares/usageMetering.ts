@@ -30,9 +30,7 @@ export const usageMetering: RequestHandler = async (req, res, next) => {
     }
 
     next();
-  } catch (error) {
-    next(new ApiError(503, 'USAGE_STORE_UNAVAILABLE', 'Usage metering is temporarily unavailable.', {
-      reason: error instanceof Error ? error.message : 'unknown',
-    }));
+  } catch {
+    next(new ApiError(503, 'USAGE_STORE_UNAVAILABLE', 'Usage metering is temporarily unavailable.'));
   }
 };
