@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { cepRouter } from './cep.routes';
 import { cnpjRouter } from './cnpj.routes';
+import { empresaCompletaRouter } from './empresaCompleta.routes';
 import { healthRouter } from './health.routes';
 import { holidaysRouter } from './holidays.routes';
 import { locationRouter } from './location.routes';
@@ -13,3 +14,4 @@ apiV1Router.use(cepRouter);
 apiV1Router.use(locationRouter);
 apiV1Router.use(holidaysRouter);
 apiV1Router.use(cnpjRouter);
+apiV1Router.use(empresaCompletaRouter);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listCitiesByState, listStates } from '../../src/services/location.service';
+import { getStateByCode, listCitiesByState, listStates } from '../../src/services/location.service';
 import { NotFoundError } from '../../src/utils/errors';
 
 function mockFetchOnce(body: unknown, status = 200): void {
@@ -46,5 +46,24 @@ describe('location.service', () => {
     mockFetchOnce({}, 404);
 
     await expect(listCitiesByState('ZZ')).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('maps a single IBGE state payload to the consistent shape', async () => {
+    mockFetchOnce({
+      id: 13,
+      sigla: 'AM',
+      nome: 'Amazonas',
+      regiao: { id: 1, sigla: 'N', nome: 'Norte' },
+    });
+
+    const result = await getStateByCode('AM');
+
+    expect(result).toEqual({ id: 13, name: 'Amazonas', stateCode: 'AM', region: 'Norte' });
+  });
+
+  it('throws NotFoundError from getStateByCode when IBGE responds 404', async () => {
+    mockFetchOnce({}, 404);
+
+    await expect(getStateByCode('ZZ')).rejects.toBeInstanceOf(NotFoundError);
   });
 });

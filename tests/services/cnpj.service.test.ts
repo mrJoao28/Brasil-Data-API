@@ -28,6 +28,7 @@ describe('cnpj.service', () => {
       cnae_fiscal_descricao: 'Atividades de organizações associativas',
       municipio: 'SAO PAULO',
       uf: 'SP',
+      cep: '01310100',
     });
 
     const result = await getCompanyByCnpj('19131243000197');
@@ -41,6 +42,7 @@ describe('cnpj.service', () => {
       mainActivity: 'Atividades de organizações associativas',
       city: 'SAO PAULO',
       state: 'SP',
+      cep: '01310100',
     });
   });
 
@@ -61,5 +63,6 @@ describe('cnpj.service', () => {
     expect(result.tradeName).toBeNull();
     expect(result.openedAt).toBeNull();
     expect(result.mainActivity).toBeNull();
+    expect(result.cep).toBeNull();
   });
 });

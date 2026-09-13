@@ -30,6 +30,7 @@ key (see [Authentication & tiers](#authentication--tiers) below).
 | GET    | `/api/v1/states/:uf/cities`  | List cities (municipalities) for a state  | Yes            |
 | GET    | `/api/v1/holidays/:year`     | National holidays for a given year        | Yes            |
 | GET    | `/api/v1/cnpj/:cnpj`         | Company lookup by CNPJ                    | Yes            |
+| GET    | `/api/v1/empresa-completa/:cnpj` | Company + full address (CEP) + full state name, aggregated | Yes |
 
 Interactive API documentation (Swagger UI) is served at `/api-docs` once
 the server is running, generated from [`docs/openapi.yaml`](docs/openapi.yaml).
@@ -87,6 +88,33 @@ code:
 Common error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401),
 `NOT_FOUND` (404), `RATE_LIMITED` (429), `UPSTREAM_ERROR` (502),
 `UPSTREAM_TIMEOUT` (504), `INTERNAL_ERROR` (500), `ROUTE_NOT_FOUND` (404).
+
+### `GET /api/v1/empresa-completa/:cnpj`
+
+Aggregates three existing lookups (CNPJ, CEP, state) into one response:
+
+```json
+{
+  "company": { "cnpj": "...", "legalName": "...", "cep": "01310100", "state": "SP", "..." : "..." },
+  "address": { "cep": "01310100", "street": "...", "city": "São Paulo", "state": "São Paulo", "stateCode": "SP" },
+  "state": { "id": 35, "name": "São Paulo", "stateCode": "SP", "region": "Sudeste" },
+  "warnings": []
+}
+```
+
+**Failure policy** (chosen for simplicity/maintainability over an
+all-or-nothing or per-field-configurable approach):
+
+- The CNPJ lookup is **required**. If it fails, the whole request fails
+  with the same status/error the standalone `/cnpj/:cnpj` endpoint would
+  return (e.g. `404 NOT_FOUND` for an unknown CNPJ).
+- The CEP-based address lookup and UF-based state lookup are each
+  **best-effort**. If either fails — or the company record simply has no
+  CEP/UF on file — that field in the response is `null` and a
+  human-readable note is added to `warnings`, instead of failing the
+  whole request. This keeps the endpoint useful when a secondary
+  provider (ViaCEP or IBGE) has a partial outage, and avoids having to
+  special-case which failures are "fatal" per field.
 
 ## External providers
 

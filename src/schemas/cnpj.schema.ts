@@ -20,6 +20,7 @@ export const cnpjResponseSchema = z.object({
   mainActivity: z.string().nullable(),
   city: z.string().nullable(),
   state: z.string().nullable(),
+  cep: z.string().nullable(),
 });
 
 export type CnpjResponse = z.infer<typeof cnpjResponseSchema>;
@@ -38,6 +39,7 @@ export const brasilApiCnpjRawSchema = z.object({
   cnae_fiscal_descricao: z.string().nullable().optional(),
   municipio: z.string().nullable().optional(),
   uf: z.string().nullable().optional(),
+  cep: z.string().nullable().optional(),
 });
 
 export type BrasilApiCnpjRaw = z.infer<typeof brasilApiCnpjRawSchema>;

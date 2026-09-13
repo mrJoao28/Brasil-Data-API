@@ -179,6 +179,45 @@ paths:
         '504':
           $ref: '#/components/responses/UpstreamTimeout'
 
+  /api/v1/empresa-completa/{cnpj}:
+    get:
+      tags: [CNPJ]
+      summary: >
+        Look up a company by CNPJ and enrich it with the full address (from
+        its CEP) and full state name (from its UF) in a single call.
+      description: >
+        The CNPJ lookup is required: if it fails, the whole request fails
+        with the same error/status the standalone /cnpj/{cnpj} endpoint
+        would return. The address and state lookups are best-effort: if
+        either fails, or the company record has no CEP/UF on file, that
+        field is `null` in the response and a note is added to `warnings`
+        instead of failing the request.
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          description: 14-digit CNPJ, with or without formatting punctuation
+          schema:
+            type: string
+            example: '19131243000197'
+      responses:
+        '200':
+          description: Company found (address/state may be null; see warnings)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpresaCompletaResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeout'
+
 components:
   schemas:
     HealthResponse:
@@ -277,6 +316,33 @@ components:
         state:
           type: string
           nullable: true
+        cep:
+          type: string
+          nullable: true
+          description: Company's registered CEP, as returned by BrasilAPI (digits only).
+
+    EmpresaCompletaResponse:
+      type: object
+      properties:
+        company:
+          $ref: '#/components/schemas/CnpjResponse'
+        address:
+          allOf:
+            - $ref: '#/components/schemas/CepResponse'
+          nullable: true
+          description: Null if the company has no CEP on file or the CEP lookup failed.
+        state:
+          allOf:
+            - $ref: '#/components/schemas/StateResponse'
+          nullable: true
+          description: Null if the company has no UF on file or the state lookup failed.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: >
+            Notes about any secondary (address/state) lookup that was
+            skipped or failed. Empty when both succeeded.
 
     Error:
       type: object

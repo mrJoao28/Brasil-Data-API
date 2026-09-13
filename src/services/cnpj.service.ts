@@ -40,5 +40,6 @@ export async function getCompanyByCnpj(cnpj: string): Promise<CnpjResponse> {
     mainActivity: data.cnae_fiscal_descricao ?? null,
     city: data.municipio ?? null,
     state: data.uf ?? null,
+    cep: data.cep ?? null,
   };
 }

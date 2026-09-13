@@ -25,6 +25,39 @@ export async function listStates(): Promise<StateResponse[]> {
   }));
 }
 
+/**
+ * Looks up a single state by its 2-letter code (UF), e.g. for enriching a
+ * CNPJ or CEP lookup with the full state name. Uses IBGE's single-resource
+ * endpoint rather than fetching the whole /estados list and filtering.
+ */
+export async function getStateByCode(stateCode: string): Promise<StateResponse> {
+  const url = `${providers.ibgeLocalidades.baseUrl}/estados/${stateCode}`;
+
+  const raw = await fetchJson<unknown>(url, {
+    providerName: providers.ibgeLocalidades.name,
+    // IBGE returns 404 for an unknown/invalid UF.
+    treatAsNotFound: [404],
+  });
+
+  if (raw === null) {
+    throw new NotFoundError(`Unknown state code "${stateCode}".`);
+  }
+
+  const parsed = ibgeStateRawSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new UpstreamError('IBGE Localidades returned an unexpected payload shape.', {
+      issues: parsed.error.issues,
+    });
+  }
+
+  return {
+    id: parsed.data.id,
+    name: parsed.data.nome,
+    stateCode: parsed.data.sigla,
+    region: parsed.data.regiao.nome,
+  };
+}
+
 export async function listCitiesByState(stateCode: string): Promise<CityResponse[]> {
   const url = `${providers.ibgeLocalidades.baseUrl}/estados/${stateCode}/municipios`;
 
