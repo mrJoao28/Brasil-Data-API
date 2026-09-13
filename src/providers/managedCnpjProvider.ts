@@ -16,6 +16,10 @@ export const managedCnpjProvider: CnpjProvider = {
   },
 };
 
+export async function getManagedCompanyByCnpj(cnpj: string): Promise<{ value: CnpjResponse | null; provider: string }> {
+  return manager.execute(cnpj);
+}
+
 export function getCnpjProviderStats() {
   return manager.getStats();
 }
