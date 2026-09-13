@@ -1,0 +1,21 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --run tests/e2e/production-smoke.test.ts
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
+          E2E_CEP: ${{ secrets.E2E_CEP }}
+          E2E_CNPJ: ${{ secrets.E2E_CNPJ }}
