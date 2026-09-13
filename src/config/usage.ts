@@ -15,7 +15,12 @@ function currentPeriod(): string {
 }
 
 function resetAtForPeriod(period: string): Date {
-  const [year, month] = period.split('-').map(Number);
+  const [yearText, monthText] = period.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error(`Invalid usage period: ${period}`);
+  }
   return new Date(Date.UTC(year, month, 1));
 }
 
