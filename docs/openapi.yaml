@@ -9,6 +9,8 @@ info:
   license:
     name: MIT
 servers:
+  - url: https://brasil-data-api.onrender.com
+    description: Production
   - url: http://localhost:3000
     description: Local development
 
@@ -21,6 +23,7 @@ tags:
   - name: Locations
   - name: Holidays
   - name: CNPJ
+  - name: Metrics
 
 paths:
   /health:
@@ -153,6 +156,7 @@ paths:
     get:
       tags: [CNPJ]
       summary: Look up a company by CNPJ
+      description: Returns normalized company registration data, including address and business activity information.
       parameters:
         - name: cnpj
           in: path
@@ -182,16 +186,12 @@ paths:
   /api/v1/empresa-completa/{cnpj}:
     get:
       tags: [CNPJ]
-      summary: >
-        Look up a company by CNPJ and enrich it with the full address (from
-        its CEP) and full state name (from its UF) in a single call.
+      summary: Look up and enrich a company by CNPJ
       description: >
-        The CNPJ lookup is required: if it fails, the whole request fails
-        with the same error/status the standalone /cnpj/{cnpj} endpoint
-        would return. The address and state lookups are best-effort: if
-        either fails, or the company record has no CEP/UF on file, that
-        field is `null` in the response and a note is added to `warnings`
-        instead of failing the request.
+        Returns normalized company registration data together with a full CEP
+        address lookup and full state information when those secondary
+        lookups are available. Secondary failures are reported in warnings
+        instead of failing the whole request.
       parameters:
         - name: cnpj
           in: path
@@ -217,6 +217,23 @@ paths:
           $ref: '#/components/responses/UpstreamError'
         '504':
           $ref: '#/components/responses/UpstreamTimeout'
+
+  /api/v1/metrics:
+    get:
+      tags: [Metrics]
+      summary: Get API usage and performance metrics
+      description: >
+        Returns in-memory request, error, latency and cache statistics for
+        the running API instance. Metrics are reset when the process restarts.
+      responses:
+        '200':
+          description: Current API metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   schemas:
@@ -292,11 +309,22 @@ components:
           type: string
           example: national
 
+    SecondaryActivity:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 6201501
+        description:
+          type: string
+          example: Desenvolvimento de programas de computador sob encomenda
+
     CnpjResponse:
       type: object
       properties:
         cnpj:
           type: string
+          example: '19131243000197'
         legalName:
           type: string
         tradeName:
@@ -307,7 +335,21 @@ components:
         openedAt:
           type: string
           nullable: true
+          example: '1988-08-17'
         mainActivity:
+          type: string
+          nullable: true
+        mainActivityCode:
+          type: integer
+          nullable: true
+        secondaryActivities:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecondaryActivity'
+        legalNature:
+          type: string
+          nullable: true
+        companySize:
           type: string
           nullable: true
         city:
@@ -316,10 +358,23 @@ components:
         state:
           type: string
           nullable: true
+          example: AM
         cep:
           type: string
           nullable: true
-          description: Company's registered CEP, as returned by BrasilAPI (digits only).
+          description: Company's registered CEP, digits only.
+        street:
+          type: string
+          nullable: true
+        number:
+          type: string
+          nullable: true
+        neighborhood:
+          type: string
+          nullable: true
+        complement:
+          type: string
+          nullable: true
 
     EmpresaCompletaResponse:
       type: object
@@ -340,9 +395,44 @@ components:
           type: array
           items:
             type: string
-          description: >
-            Notes about any secondary (address/state) lookup that was
-            skipped or failed. Empty when both succeeded.
+          description: Notes about any secondary lookup that was skipped or failed.
+
+    CacheStats:
+      type: object
+      properties:
+        hits:
+          type: integer
+          example: 42
+        misses:
+          type: integer
+          example: 8
+        entries:
+          type: integer
+          example: 3
+
+    MetricsResponse:
+      type: object
+      properties:
+        requests:
+          type: integer
+          example: 100
+        successes:
+          type: integer
+          example: 94
+        clientErrors:
+          type: integer
+          example: 4
+        serverErrors:
+          type: integer
+          example: 2
+        totalDurationMs:
+          type: number
+          example: 1250.45
+        averageLatencyMs:
+          type: number
+          example: 12.5
+        cache:
+          $ref: '#/components/schemas/CacheStats'
 
     Error:
       type: object
