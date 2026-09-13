@@ -8,8 +8,6 @@ export const cnpjParamSchema = z.object({
     .refine((value) => value.length === 14, {
       message: 'CNPJ must contain 14 digits.',
     })
-    // Skip this check (rather than double-reporting) when the length is
-    // already wrong; the check-digit algorithm requires exactly 14 digits.
     .refine((value) => value.length !== 14 || isValidCnpjChecksum(value), {
       message: 'CNPJ check digits are invalid.',
     }),
@@ -52,10 +50,7 @@ export const brasilApiCnpjRawSchema = z.object({
   data_inicio_atividade: z.string().nullable().optional(),
   cnae_fiscal_descricao: z.string().nullable().optional(),
   cnae_fiscal: z.number().nullable().optional(),
-  cnaes_secundarios: z
-    .array(z.object({ codigo: z.number(), descricao: z.string() }))
-    .optional()
-    .default([]),
+  cnaes_secundarios: z.array(z.object({ codigo: z.number(), descricao: z.string() })).optional().default([]),
   natureza_juridica: z.string().nullable().optional(),
   porte: z.string().nullable().optional(),
   municipio: z.string().nullable().optional(),
@@ -68,3 +63,23 @@ export const brasilApiCnpjRawSchema = z.object({
 });
 
 export type BrasilApiCnpjRaw = z.infer<typeof brasilApiCnpjRawSchema>;
+
+export const openCnpjRawSchema = z.object({
+  cnpj: z.string(),
+  razao_social: z.string(),
+  nome_fantasia: z.string().nullable().optional(),
+  situacao_cadastral: z.string().nullable().optional(),
+  data_inicio_atividade: z.string().nullable().optional(),
+  cnae_principal: z.union([z.string(), z.number()]).nullable().optional(),
+  natureza_juridica: z.string().nullable().optional(),
+  porte_empresa: z.string().nullable().optional(),
+  municipio: z.string().nullable().optional(),
+  uf: z.string().nullable().optional(),
+  cep: z.string().nullable().optional(),
+  logradouro: z.string().nullable().optional(),
+  numero: z.string().nullable().optional(),
+  bairro: z.string().nullable().optional(),
+  complemento: z.string().nullable().optional(),
+});
+
+export type OpenCnpjRaw = z.infer<typeof openCnpjRawSchema>;
