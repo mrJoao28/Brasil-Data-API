@@ -32,8 +32,20 @@ export function redisIncr(key: string): Promise<number> {
   return command<number>(`incr/${encodeURIComponent(key)}`);
 }
 
+export function redisDecr(key: string): Promise<number> {
+  return command<number>(`decr/${encodeURIComponent(key)}`);
+}
+
 export function redisExpire(key: string, seconds: number): Promise<number> {
   return command<number>(`expire/${encodeURIComponent(key)}/${seconds}`);
+}
+
+export function redisTtl(key: string): Promise<number> {
+  return command<number>(`ttl/${encodeURIComponent(key)}`);
+}
+
+export function redisDelete(key: string): Promise<number> {
+  return command<number>(`del/${encodeURIComponent(key)}`);
 }
 
 export async function redisEval<T>(script: string, keys: string[], args: string[]): Promise<T> {
