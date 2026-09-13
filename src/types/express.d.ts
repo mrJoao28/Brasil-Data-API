@@ -7,6 +7,8 @@ declare global {
       apiKey?: string;
       /** Tier (`free` | `paid`) associated with `req.apiKey`. */
       apiKeyTier?: ApiKeyTier;
+      /** Stable correlation id for the lifetime of a request. */
+      requestId?: string;
     }
   }
 }
