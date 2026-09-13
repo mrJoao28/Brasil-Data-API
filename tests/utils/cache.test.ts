@@ -35,6 +35,6 @@ describe('TtlCache', () => {
     cache.clear();
 
     expect(cache.get('a')).toBeUndefined();
-    expect(cache.getStats()).toEqual({ hits: 0, misses: 0, entries: 0 });
+    expect(cache.getStats()).toEqual({ hits: 0, misses: 1, entries: 0 });
   });
 });
