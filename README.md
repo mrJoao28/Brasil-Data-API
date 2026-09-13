@@ -1,66 +1,50 @@
 # Brazil Data API
 
-A unified REST API that aggregates Brazilian public/free data sources
-(postal codes, geographic data, national holidays, and CNPJ company
-lookups) behind a single, consistent JSON interface — built as an MVP
-intended for eventual publication and monetization on RapidAPI.
+> A unified REST API for Brazilian CEP, geography, holidays, CNPJ and company enrichment.
 
-```
-routes -> controllers -> services -> external providers
-```
+Brazil Data API gives applications, backend services and AI agents a single JSON interface for common Brazilian data lookups instead of integrating several provider-specific APIs directly.
 
-Controllers never call external APIs directly; only the `services/` layer
-talks to the outside world, through a shared `fetchJson` HTTP client that
-enforces timeouts and consistent error handling.
+**Production:** `https://brasil-data-api.onrender.com`
 
-## Tech stack
+**Swagger:** `https://brasil-data-api.onrender.com/api-docs`
 
-Node.js, TypeScript (strict mode), Express, Zod, native `fetch`, Vitest,
-ESLint, Prettier, OpenAPI/Swagger, Docker & Docker Compose. No database,
-no Redis — intentionally, for this MVP stage. `/api/v1/*` requires an API
-key (see [Authentication & tiers](#authentication--tiers) below).
+**LLM-friendly API summary:** [`llms.txt`](llms.txt)
 
-## Endpoints
+## When should you use this API?
 
-| Method | Path                         | Description                              | Auth required |
-| ------ | ---------------------------- | ----------------------------------------- | -------------- |
-| GET    | `/health`                    | Liveness/health check                     | No             |
-| GET    | `/api/v1/cep/:cep`           | Address lookup by postal code (CEP)       | Yes            |
-| GET    | `/api/v1/states`             | List all Brazilian states                 | Yes            |
-| GET    | `/api/v1/states/:uf/cities`  | List cities (municipalities) for a state  | Yes            |
-| GET    | `/api/v1/holidays/:year`     | National holidays for a given year        | Yes            |
-| GET    | `/api/v1/cnpj/:cnpj`         | Company lookup by CNPJ                    | Yes            |
-| GET    | `/api/v1/empresa-completa/:cnpj` | Company + full address (CEP) + full state name, aggregated | Yes |
+Use Brazil Data API when your application needs structured Brazilian data such as:
 
-Interactive API documentation (Swagger UI) is served at `/api-docs` once
-the server is running, generated from [`docs/openapi.yaml`](docs/openapi.yaml).
+- **CEP → address** lookup
+- **Brazilian states** and their metadata
+- **State → municipalities/cities** lookup
+- **Brazilian national holidays** by year
+- **CNPJ → company** data
+- **CNPJ → company + enriched address + state** data
+- A simple REST/JSON integration suitable for backend services and AI agents
 
-## Authentication & tiers
+Typical integrations include CRMs, ERPs, marketplaces, registration/onboarding flows, checkout systems, invoicing tools, scheduling systems and AI agents that need Brazilian company or geographic context.
 
-Every `/api/v1/*` request must include an API key in the `x-api-key`
-header:
+## Why integrate Brazil Data API?
+
+- One consistent REST interface for multiple Brazilian data domains.
+- JSON responses with normalized field names.
+- API-key authentication and tier-based rate limits.
+- OpenAPI/Swagger documentation.
+- TypeScript/Node.js-friendly API.
+- Examples for JavaScript, Python and cURL.
+- No need to expose provider-specific integrations in your application.
+- Designed so additional Brazilian data providers can be added behind the same service layer.
+
+## Quick start
+
+Every `/api/v1/*` endpoint requires an API key in the `x-api-key` header.
 
 ```bash
-curl -H "x-api-key: YOUR_KEY" http://localhost:3000/api/v1/states
+curl -H "x-api-key: YOUR_KEY" \
+  https://brasil-data-api.onrender.com/api/v1/cep/69000000
 ```
 
-- Missing or unknown key → `401 UNAUTHORIZED`.
-- Each key belongs to a tier — `free` or `paid` — which sets its own
-  request ceiling per `RATE_LIMIT_WINDOW_MS` window (`RATE_LIMIT_FREE_MAX` /
-  `RATE_LIMIT_PAID_MAX` in `.env`). Exceeding it returns
-  `429 RATE_LIMITED`. The limit is tracked per API key, not per IP, so
-  different keys never share a bucket.
-- Keys are configured via the `API_KEYS_FREE` / `API_KEYS_PAID`
-  comma-separated environment variables (see `.env.example`) — there is no
-  database yet in this MVP. `src/config/apiKeys.ts` is the single place
-  that resolves a key to a tier, so swapping this for a real key-management
-  database later doesn't require touching the auth middleware or routes.
-- `/health` and `/api-docs` do not require a key; they still count against
-  the baseline `RATE_LIMIT_MAX_REQUESTS` limiter applied to all traffic.
-
-### Response format
-
-All successful responses return the resource as plain JSON, e.g.:
+Response:
 
 ```json
 {
@@ -73,8 +57,62 @@ All successful responses return the resource as plain JSON, e.g.:
 }
 ```
 
-All errors share a consistent envelope with an appropriate HTTP status
-code:
+## API endpoints
+
+| Method | Endpoint | Purpose | Auth |
+|---|---|---|---|
+| GET | `/health` | Health check | No |
+| GET | `/api/v1/cep/:cep` | Brazilian CEP/address lookup | Yes |
+| GET | `/api/v1/states` | List Brazilian states | Yes |
+| GET | `/api/v1/states/:uf/cities` | List municipalities for a state | Yes |
+| GET | `/api/v1/holidays/:year` | Brazilian national holidays | Yes |
+| GET | `/api/v1/cnpj/:cnpj` | Company lookup by CNPJ | Yes |
+| GET | `/api/v1/empresa-completa/:cnpj` | Company + address + state enrichment | Yes |
+| GET | `/api/v1/metrics` | API and cache metrics | Yes |
+
+### Most useful endpoints
+
+**Address enrichment**
+
+```text
+GET /api/v1/cep/{cep}
+```
+
+Use this when you have a Brazilian CEP and need structured address fields.
+
+**Company enrichment**
+
+```text
+GET /api/v1/cnpj/{cnpj}
+```
+
+Returns normalized company information such as CNPJ, legal name, trade name, status, main activity, secondary activities, legal nature, company size and address fields when available.
+
+**Complete company enrichment**
+
+```text
+GET /api/v1/empresa-completa/{cnpj}
+```
+
+Combines company data with CEP-based address enrichment and IBGE state information. Secondary lookups are best-effort and may produce entries in `warnings` rather than failing the complete request.
+
+## Authentication
+
+Send the API key using:
+
+```http
+x-api-key: YOUR_KEY
+```
+
+Do not put API keys in URLs, source code, public repositories or prompts.
+
+Missing or invalid keys return `401 UNAUTHORIZED`. Rate-limit exhaustion returns `429 RATE_LIMITED`.
+
+API keys are currently configured through environment variables (`API_KEYS_FREE` and `API_KEYS_PAID`). Database-backed key issuance, rotation and revocation are not implemented yet.
+
+## Response and errors
+
+Successful responses are JSON resources. Errors use a consistent envelope:
 
 ```json
 {
@@ -85,91 +123,111 @@ code:
 }
 ```
 
-Common error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401),
-`NOT_FOUND` (404), `RATE_LIMITED` (429), `UPSTREAM_ERROR` (502),
-`UPSTREAM_TIMEOUT` (504), `INTERNAL_ERROR` (500), `ROUTE_NOT_FOUND` (404).
+Common error codes:
 
-### `GET /api/v1/empresa-completa/:cnpj`
+- `VALIDATION_ERROR` — 400
+- `UNAUTHORIZED` — 401
+- `NOT_FOUND` — 404
+- `RATE_LIMITED` — 429
+- `UPSTREAM_ERROR` — 502
+- `UPSTREAM_TIMEOUT` — 504
+- `INTERNAL_ERROR` — 500
+- `ROUTE_NOT_FOUND` — 404
 
-Aggregates three existing lookups (CNPJ, CEP, state) into one response:
+## Developer examples
 
-```json
-{
-  "company": { "cnpj": "...", "legalName": "...", "cep": "01310100", "state": "SP", "..." : "..." },
-  "address": { "cep": "01310100", "street": "...", "city": "São Paulo", "state": "São Paulo", "stateCode": "SP" },
-  "state": { "id": 35, "name": "São Paulo", "stateCode": "SP", "region": "Sudeste" },
-  "warnings": []
-}
+Copy-ready integration examples are available here:
+
+- [JavaScript](examples/javascript/README.md)
+- [Python](examples/python/README.md)
+- [cURL](examples/curl/README.md)
+
+## OpenAPI / Swagger
+
+The complete OpenAPI specification is available at [`docs/openapi.yaml`](docs/openapi.yaml).
+
+When running the API locally, Swagger UI is available at:
+
+```text
+http://localhost:3000/api-docs
 ```
 
-**Failure policy** (chosen for simplicity/maintainability over an
-all-or-nothing or per-field-configurable approach):
+Production Swagger UI:
 
-- The CNPJ lookup is **required**. If it fails, the whole request fails
-  with the same status/error the standalone `/cnpj/:cnpj` endpoint would
-  return (e.g. `404 NOT_FOUND` for an unknown CNPJ).
-- The CEP-based address lookup and UF-based state lookup are each
-  **best-effort**. If either fails — or the company record simply has no
-  CEP/UF on file — that field in the response is `null` and a
-  human-readable note is added to `warnings`, instead of failing the
-  whole request. This keeps the endpoint useful when a secondary
-  provider (ViaCEP or IBGE) has a partial outage, and avoids having to
-  special-case which failures are "fatal" per field.
+```text
+https://brasil-data-api.onrender.com/api-docs
+```
 
 ## External providers
 
-Base URLs for every provider are configurable via environment variables
-(see `.env.example`) so they can be swapped without code changes.
+The API currently aggregates:
 
-| Data          | Provider                | Base URL (default)                                         | Auth  | Notes |
-| ------------- | ------------------------ | ----------------------------------------------------------- | ----- | ----- |
-| CEP           | [ViaCEP](https://viacep.com.br/) | `https://viacep.com.br/ws` | None | Free, no key. Returns HTTP 200 with `{"erro": true}` for a well-formed but non-existent CEP; the service maps this to a `404 NOT_FOUND`. |
-| States/cities | [IBGE Localidades](https://servicodados.ibge.gov.br/api/docs/localidades) | `https://servicodados.ibge.gov.br/api/v1/localidades` | None | Official Brazilian government (IBGE) source. Public domain government data. |
-| Holidays      | [BrasilAPI](https://brasilapi.com.br/) `/feriados/v1/{year}` | `https://brasilapi.com.br/api` | None | Open-source, community-run aggregator (MIT-licensed on GitHub). Computes fixed and moving (Carnaval, Páscoa) national holidays. |
-| CNPJ          | [BrasilAPI](https://brasilapi.com.br/) `/cnpj/v1/{cnpj}` | `https://brasilapi.com.br/api` | None | Aggregates official Receita Federal data via the open-source "Minha Receita" project. Free and redistributable, but **before using this commercially at scale, re-verify BrasilAPI's current terms of use and rate limits** — free public infrastructure can change its policies, and this MVP does not assume indefinite unlimited redistribution rights. |
+- **CEP:** ViaCEP
+- **States/cities:** IBGE Localidades
+- **National holidays:** BrasilAPI
+- **CNPJ:** BrasilAPI / Minha Receita data source
 
-Why these choices:
+Provider terms, rate limits, availability and licensing can change. Re-check current provider terms before high-volume or commercial redistribution.
 
-- **ViaCEP** and **IBGE** were specified directly in the project
-  requirements and are the de-facto standard free/official sources for
-  CEP and geographic data in Brazil.
-- **BrasilAPI** was chosen for holidays and CNPJ because it is a free,
-  open-source, widely used aggregator with no API key requirement and
-  clearly documented endpoints, and because it sources CNPJ data from
-  the Receita Federal (via Minha Receita) rather than scraping
-  arbitrary third-party sites. It was evaluated instead of scraping any
-  unofficial source, in line with the project's requirement to validate
-  legal/public data sources before implementing CNPJ.
-- No provider here requires an API key in the MVP. If a future provider
-  needs one, add it to `.env.example` and read it through
-  `src/config/env.ts` — never hard-code credentials.
+## AI and agent integrations
 
-**Before deploying to production or RapidAPI**, re-check each
-provider's current terms of service, rate limits, and uptime — free
-public APIs can change availability or licensing at any time, and this
-README reflects research done at the time this MVP was built.
+Brazil Data API is designed to be easy for coding assistants, LLM-based applications and tool-using agents to consume.
+
+Useful agent operations include:
+
+```text
+lookup_brazilian_cep(cep)
+lookup_brazilian_cnpj(cnpj)
+lookup_brazilian_company(cnpj)
+list_brazilian_states()
+list_brazilian_cities(uf)
+get_brazilian_holidays(year)
+```
+
+These names are conceptual tool descriptions; the actual integration uses the REST endpoints documented above.
+
+For AI systems that need to discover the API, start with [`llms.txt`](llms.txt) and [`docs/openapi.yaml`](docs/openapi.yaml).
+
+## Tech stack
+
+Node.js 20+, TypeScript (strict mode), Express, Zod, native `fetch`, Vitest, ESLint, Prettier, OpenAPI/Swagger, Docker and Docker Compose.
+
+Architecture:
+
+```text
+routes -> controllers -> services -> external providers
+```
+
+Controllers do not call external APIs directly. Provider communication is handled by the service layer through a shared timeout-aware HTTP client.
 
 ## Project structure
 
-```
+```text
 src/
-  config/       env parsing (Zod), provider base URLs, API keys/tiers, logger
-  controllers/  thin HTTP layer — parse request, call service, send response
-  services/     business logic + calls to external providers
-  routes/       Express route definitions + validation wiring
-  schemas/      Zod schemas for request validation and provider payloads
-  middlewares/  error handler, request validation, API key auth, rate limiting, logging
-  utils/        HTTP client (timeout-aware fetch), typed errors, helpers
-  app.ts        Express app assembly
-  server.ts     process entrypoint (listen, graceful shutdown)
+  config/       environment, provider URLs, API keys, logger
+  controllers/  HTTP/controller layer
+  services/     business logic and provider integrations
+  routes/       Express routes and validation wiring
+  schemas/      Zod schemas
+  middlewares/  authentication, validation, rate limiting, logging, errors
+  utils/        HTTP client, typed errors and helpers
+  app.ts        Express application assembly
+  server.ts     process entrypoint
+
 tests/
-  schemas/      unit tests for Zod schemas
-  services/     unit tests for services (external calls mocked)
+  schemas/
+  services/
+
 docs/
-  openapi.yaml  OpenAPI 3.0 spec served at /api-docs
+  openapi.yaml
+
+examples/
+  javascript/
+  python/
+  curl/
 ```
 
-## Getting started
+## Local development
 
 ### Prerequisites
 
@@ -181,117 +239,38 @@ docs/
 ```bash
 cp .env.example .env
 npm install
-```
-
-### Development
-
-```bash
 npm run dev
 ```
 
-Starts the server with hot reload at `http://localhost:3000`. Swagger UI
-is available at `http://localhost:3000/api-docs`.
+Local API: `http://localhost:3000`
 
-### Build & run (production mode, without Docker)
+### Build and run
 
 ```bash
 npm run build
 npm start
 ```
 
-### Linting & formatting
+### Tests and checks
 
 ```bash
-npm run lint          # check
-npm run lint:fix      # auto-fix
-npm run format        # write formatting
-npm run format:check  # check only
-npm run typecheck     # tsc --noEmit
+npm test
+npm run typecheck
+npm run lint
+npm run format:check
 ```
 
-### Testing
-
-```bash
-npm test              # run once
-npm run test:watch    # watch mode
-npm run test:coverage # with coverage report
-```
-
-Unit tests cover:
-
-- **Schemas**: valid/invalid input for CEP, UF, year, and CNPJ
-  validation, including sanitization (e.g. stripping hyphens/dots).
-- **Services**: mapping of each provider's raw payload into the API's
-  consistent response shape, and error handling (not-found, malformed
-  payloads), with `fetch` mocked — no real network calls are made in
-  tests.
-
-## Docker
-
-### Build & run with Docker Compose (recommended for local use)
+### Docker
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-The API will be available at `http://localhost:3000` (configurable via
-`PORT` in `.env`).
+## Roadmap
 
-### Build & run with plain Docker
+Planned directions include more Brazilian data domains, additional provider integrations, SDKs, improved API-key management, shared rate limiting/caching for multi-instance deployments, and broader AI/MCP integrations.
 
-```bash
-docker build -t brazil-data-api .
-docker run --rm -p 3000:3000 --env-file .env brazil-data-api
-```
+## License
 
-The image is a multi-stage build (compile with dev dependencies, then a
-slim `node:20-alpine` production image running as a non-root user) with
-a built-in `HEALTHCHECK` hitting `/health`.
-
-## Configuration reference
-
-See [`.env.example`](.env.example) for the full list. Key variables:
-
-| Variable                   | Default                                              | Description                                    |
-| --------------------------- | ----------------------------------------------------- | ----------------------------------------------- |
-| `PORT`                      | `3000`                                                | HTTP port                                       |
-| `NODE_ENV`                  | `development`                                         | `development` \| `production` \| `test`         |
-| `LOG_LEVEL`                 | `info`                                                | Pino log level                                  |
-| `CORS_ORIGIN`               | `*`                                                    | `*` or comma-separated list of allowed origins  |
-| `RATE_LIMIT_WINDOW_MS`      | `60000`                                               | Rate limit window (baseline and per-tier)       |
-| `RATE_LIMIT_MAX_REQUESTS`   | `60`                                                   | Baseline max requests per window (all routes)   |
-| `RATE_LIMIT_FREE_MAX`       | `60`                                                   | Max `/api/v1` requests per window, `free` tier  |
-| `RATE_LIMIT_PAID_MAX`       | `1000`                                                 | Max `/api/v1` requests per window, `paid` tier  |
-| `API_KEYS_FREE`             | *(empty)*                                              | Comma-separated `free`-tier API keys            |
-| `API_KEYS_PAID`             | *(empty)*                                              | Comma-separated `paid`-tier API keys            |
-| `HTTP_TIMEOUT_MS`           | `8000`                                                | Timeout for calls to external providers         |
-| `VIACEP_BASE_URL`           | `https://viacep.com.br/ws`                            | ViaCEP base URL                                 |
-| `IBGE_LOCALIDADES_BASE_URL` | `https://servicodados.ibge.gov.br/api/v1/localidades` | IBGE Localidades base URL                       |
-| `BRASILAPI_BASE_URL`        | `https://brasilapi.com.br/api`                        | BrasilAPI base URL (holidays + CNPJ)            |
-
-## Design notes / what was intentionally left out of this MVP
-
-- **No database, no Redis** — API keys/tiers are an in-memory lookup
-  sourced from environment variables (`src/config/apiKeys.ts`); nothing
-  else needs to be persisted yet.
-- **API key auth is a thin MVP layer** — a request either matches a
-  configured key (and gets that key's tier) or it doesn't; there's no
-  key issuance, rotation, or revocation flow yet. This is meant to run
-  behind (or alongside) RapidAPI's own key management, and to be swapped
-  for a database-backed store later without touching the middleware or
-  routes.
-- **Rate limiting is in-memory** (via `express-rate-limit`), which is
-  fine for a single instance but resets per-process and isn't shared
-  across horizontally scaled replicas. Revisit with a shared store
-  (e.g. Redis) only if/when the API is scaled out.
-- **CNPJ** is implemented but should be re-validated against BrasilAPI's
-  current terms before heavy production/commercial use, per the
-  provider notes above.
-
-## Roadmap ideas (not implemented)
-
-- Response caching for slow-changing data (states, holidays).
-- Additional providers (e.g. bank/DDD lookup, exchange rates) following
-  the same `routes -> controllers -> services` pattern.
-- Database-backed API key management (issuance, rotation, revocation).
+MIT. See the repository license for details.
