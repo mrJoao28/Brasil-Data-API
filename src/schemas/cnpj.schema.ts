@@ -1,9 +1,18 @@
 import { z } from 'zod';
+import { isValidCnpjChecksum } from '../utils/cnpjValidation';
 
 export const cnpjParamSchema = z.object({
-  cnpj: z.string().transform((value) => value.replace(/\D/g, '')).refine((value) => value.length === 14, {
-    message: 'CNPJ must contain 14 digits.',
-  }),
+  cnpj: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ''))
+    .refine((value) => value.length === 14, {
+      message: 'CNPJ must contain 14 digits.',
+    })
+    // Skip this check (rather than double-reporting) when the length is
+    // already wrong; the check-digit algorithm requires exactly 14 digits.
+    .refine((value) => value.length !== 14 || isValidCnpjChecksum(value), {
+      message: 'CNPJ check digits are invalid.',
+    }),
 });
 
 export type CnpjParam = z.infer<typeof cnpjParamSchema>;
@@ -43,7 +52,10 @@ export const brasilApiCnpjRawSchema = z.object({
   data_inicio_atividade: z.string().nullable().optional(),
   cnae_fiscal_descricao: z.string().nullable().optional(),
   cnae_fiscal: z.number().nullable().optional(),
-  cnaes_secundarios: z.array(z.object({ codigo: z.number(), descricao: z.string() })).optional().default([]),
+  cnaes_secundarios: z
+    .array(z.object({ codigo: z.number(), descricao: z.string() }))
+    .optional()
+    .default([]),
   natureza_juridica: z.string().nullable().optional(),
   porte: z.string().nullable().optional(),
   municipio: z.string().nullable().optional(),

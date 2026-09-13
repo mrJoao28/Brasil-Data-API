@@ -161,7 +161,11 @@ paths:
         - name: cnpj
           in: path
           required: true
-          description: 14-digit CNPJ, with or without formatting punctuation
+          description: >
+            14-digit CNPJ, with or without formatting punctuation. Check
+            digits ("dígitos verificadores") are validated; a
+            structurally 14-digit but arithmetically invalid CNPJ is
+            rejected with 400 VALIDATION_ERROR.
           schema:
             type: string
             example: '19131243000197'
@@ -196,7 +200,11 @@ paths:
         - name: cnpj
           in: path
           required: true
-          description: 14-digit CNPJ, with or without formatting punctuation
+          description: >
+            14-digit CNPJ, with or without formatting punctuation. Check
+            digits ("dígitos verificadores") are validated; a
+            structurally 14-digit but arithmetically invalid CNPJ is
+            rejected with 400 VALIDATION_ERROR.
           schema:
             type: string
             example: '19131243000197'

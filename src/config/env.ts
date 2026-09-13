@@ -28,6 +28,20 @@ const envSchema = z.object({
     .url()
     .default('https://servicodados.ibge.gov.br/api/v1/localidades'),
   BRASILAPI_BASE_URL: z.string().url().default('https://brasilapi.com.br/api'),
+
+  // Provider selection. Kept separate from the base-URL config above so a
+  // provider can be swapped without touching URLs, and so unimplemented
+  // providers fail fast with a clear message instead of silently falling
+  // back to the default. See docs/PROVIDERS.md for the licensing status
+  // of each option before switching away from the default in production.
+  //
+  // 'correios' and 'receita-federal' are listed (not just left out) so
+  // operators discover the intended extension points, but neither is
+  // implemented yet: both require credentials/contracts this environment
+  // does not have (SIGEP Web access; gov.br/conecta OAuth2 client). See
+  // docs/PROVIDERS.md.
+  CEP_PROVIDER: z.enum(['viacep', 'correios']).default('viacep'),
+  CNPJ_PROVIDER: z.enum(['brasilapi', 'receita-federal']).default('brasilapi'),
 });
 
 export type Env = z.infer<typeof envSchema>;

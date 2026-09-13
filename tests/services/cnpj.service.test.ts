@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cnpjCache } from '../../src/config/cache';
 import { getCompanyByCnpj } from '../../src/services/cnpj.service';
 import { NotFoundError } from '../../src/utils/errors';
 
@@ -14,6 +15,13 @@ function mockFetchOnce(body: unknown, status = 200): void {
 }
 
 describe('cnpj.service', () => {
+  // The CNPJ cache is a module-level singleton (same instance the service
+  // imports), so tests reusing the same CNPJ must start from a clean slate
+  // or they'd read each other's cached results instead of hitting fetch.
+  beforeEach(() => {
+    cnpjCache.clear();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -27,7 +35,9 @@ describe('cnpj.service', () => {
       data_inicio_atividade: '2013-05-06',
       cnae_fiscal_descricao: 'Atividades de organizações associativas',
       cnae_fiscal: 9493600,
-      cnaes_secundarios: [{ codigo: 6204000, descricao: 'Consultoria em tecnologia da informação' }],
+      cnaes_secundarios: [
+        { codigo: 6204000, descricao: 'Consultoria em tecnologia da informação' },
+      ],
       natureza_juridica: 'Associação Privada',
       porte: 'DEMAIS',
       municipio: 'SAO PAULO',
@@ -49,7 +59,9 @@ describe('cnpj.service', () => {
       openedAt: '2013-05-06',
       mainActivity: 'Atividades de organizações associativas',
       mainActivityCode: 9493600,
-      secondaryActivities: [{ code: 6204000, description: 'Consultoria em tecnologia da informação' }],
+      secondaryActivities: [
+        { code: 6204000, description: 'Consultoria em tecnologia da informação' },
+      ],
       legalNature: 'Associação Privada',
       companySize: 'DEMAIS',
       city: 'SAO PAULO',
@@ -80,5 +92,21 @@ describe('cnpj.service', () => {
     expect(result.legalNature).toBeNull();
     expect(result.companySize).toBeNull();
     expect(result.cep).toBeNull();
+  });
+
+  it('caches a successful lookup and does not call fetch again for the same CNPJ', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({ cnpj: '19131243000197', razao_social: 'OPEN KNOWLEDGE BRASIL' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await getCompanyByCnpj('19131243000197');
+    const second = await getCompanyByCnpj('19131243000197');
+
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
