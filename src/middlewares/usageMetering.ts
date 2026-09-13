@@ -1,9 +1,9 @@
 import type { RequestHandler } from 'express';
 import { getPlanConfig } from '../config/plans';
-import { consumeUsage, getUsage } from '../config/usage';
+import { consumeUsage } from '../config/usage';
 import { ApiError } from '../utils/errors';
 
-export const usageMetering: RequestHandler = (req, res, next) => {
+export const usageMetering: RequestHandler = async (req, res, next) => {
   const key = req.apiKey;
   const tier = req.apiKeyTier;
 
@@ -12,24 +12,25 @@ export const usageMetering: RequestHandler = (req, res, next) => {
     return;
   }
 
-  const plan = getPlanConfig(tier);
-  const before = getUsage(key, tier);
-  res.setHeader('X-Plan', plan.name);
-  res.setHeader('X-Usage-Limit', String(before.limit));
-  res.setHeader('X-Usage-Used', String(before.used));
-  res.setHeader('X-Usage-Remaining', String(before.remaining));
-  res.setHeader('X-Usage-Reset', Math.floor(before.resetAt.getTime() / 1000));
+  try {
+    const plan = getPlanConfig(tier);
+    const usage = await consumeUsage(key, tier);
+    res.setHeader('X-Plan', plan.name);
+    res.setHeader('X-Usage-Limit', String(usage.limit));
+    res.setHeader('X-Usage-Used', String(usage.used));
+    res.setHeader('X-Usage-Remaining', String(usage.remaining));
+    res.setHeader('X-Usage-Reset', Math.floor(usage.resetAt.getTime() / 1000));
 
-  if (before.used >= before.limit) {
-    next(new ApiError(429, 'PLAN_LIMIT', 'Monthly plan quota exceeded.', {
-      limit: before.limit,
-      resetAt: before.resetAt.toISOString(),
-    }));
-    return;
+    if (usage.used >= usage.limit) {
+      next(new ApiError(429, 'PLAN_LIMIT', 'Monthly plan quota exceeded.', {
+        limit: usage.limit,
+        resetAt: usage.resetAt.toISOString(),
+      }));
+      return;
+    }
+
+    next();
+  } catch (error) {
+    next(new ApiError(503, 'USAGE_STORE_UNAVAILABLE', 'Usage metering is temporarily unavailable.', undefined, { cause: error }));
   }
-
-  const after = consumeUsage(key, tier);
-  res.setHeader('X-Usage-Used', String(after.used));
-  res.setHeader('X-Usage-Remaining', String(after.remaining));
-  next();
 };
